@@ -87,3 +87,5 @@ Interactions with succint such as generating groth16 proofs is done on the prove
 
 Requests are sent to the proof server from the test to generate groth16 proofs, the proofs are generated on the succinct prover network which costs 0.5$ (0.5 credits), this is due to the proofs being too large to generate locally for my current hardware, note this when running the prove server locally.
 
+
+If you have issues, feel free to create an issue on this repository
