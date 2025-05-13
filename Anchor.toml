@@ -1,0 +1,22 @@
+[toolchain]
+package_manager = "yarn"
+
+[features]
+resolution = true
+skip-lint = false
+
+[programs.localnet]
+solana_mixer = "B7odahygLXdwCYmJteVyBFXXe9qEW5hyvCXieRGBoTTz"
+
+[programs.devnet]
+solana_mixer = "B7odahygLXdwCYmJteVyBFXXe9qEW5hyvCXieRGBoTTz"
+
+[registry]
+url = "https://api.apr.dev"
+
+[provider]
+cluster = "localnet"
+wallet = "~/.config/solana/id.json"
+
+[scripts]
+test = "cargo test"

@@ -1,0 +1,58 @@
+{
+  "address": "posP3YePQDA3fVh2fnBFp8R6qV6htPiKpxCLzj7iExg",
+  "metadata": {
+    "name": "poseidon_hasher",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "Created with Anchor"
+  },
+  "instructions": [
+    {
+      "name": "hash_pair",
+      "discriminator": [
+        213,
+        92,
+        136,
+        26,
+        202,
+        85,
+        32,
+        221
+      ],
+      "accounts": [],
+      "args": [
+        {
+          "name": "left",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "right",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        }
+      ],
+      "returns": {
+        "array": [
+          "u8",
+          32
+        ]
+      }
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "HasherFailure",
+      "msg": "Poseidon hasher failed"
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+[package]
+name = "solana-mixer"
+version = "0.1.0"
+description = "Created with Anchor"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "solana_mixer"
+
+[features]
+default = []
+cpi = ["no-entrypoint"]
+no-entrypoint = []
+no-idl = []
+no-log-ix-name = []
+idl-build = ["anchor-lang/idl-build"]
+
+[build-dependencies]
+ark-serialize = { version = "0.5", features = ["derive"] }
+light-poseidon = { version = "0.3.0" }
+ark-bn254 = { version = "0.5.0", features = ["std"] }
+solana-poseidon = "2.1.6"
+
+[dependencies]
+anchor-lang = { version = "0.31.1", features = ["event-cpi"] }
+solana-program = "=2.1.6"
+sp1-solana = { git = "https://github.com/succinctlabs/sp1-solana" }
+solana-poseidon = "2.1.6"
+borsh = { version = "1.5.7", features = ["derive"] }
