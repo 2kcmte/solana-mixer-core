@@ -3260,17 +3260,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "merkle-poseidon"
-version = "0.3.0"
-source = "git+https://github.com/AlaaZorkane/merkle-poseidon#e7632843eb3e041060b1126766db021a89fd588e"
-dependencies = [
- "ark-bn254 0.5.0",
- "ark-ff 0.5.0",
- "light-poseidon 0.3.0",
- "thiserror 2.0.12",
-]
-
-[[package]]
 name = "merlin"
 version = "3.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3333,7 +3322,6 @@ dependencies = [
  "ark-ff 0.5.0",
  "hex",
  "light-poseidon 0.3.0",
- "merkle-poseidon",
  "num-bigint 0.4.6",
  "rand 0.8.5",
 ]

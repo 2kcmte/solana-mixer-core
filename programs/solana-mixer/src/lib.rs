@@ -88,13 +88,14 @@ pub const ZERO_HASHES: [[u8; 32]; TREE_DEPTH] = [
         216, 9, 218, 218, 11, 122, 25, 59, 228, 61, 23, 128, 43,
     ],
 ];
-declare_id!("B7odahygLXdwCYmJteVyBFXXe9qEW5hyvCXieRGBoTTz");
+
+declare_id!("62uKm8yeust7nZbf9nKZ7Jx5ncP9AZucBUSToQLACnmh");
 
 pub const TREE_DEPTH: usize = 20;
 pub const ROOT_HISTORY_SIZE: usize = 33;
-pub const MAX_NULLIFIERS: usize = 200;
+//pub const MAX_NULLIFIERS: usize = 200;
 
-const MIXER_VKEY_HASH: &str = "0x00b76d819fb849145f22d5b27b73d0e2fc6bb96f16856285b147a35831691a40";
+const MIXER_VKEY_HASH: &str = "0x00a7881a4eeebea56a664ec5e70cf2d5fe41d6e0544a2beb06d9ccdd16a1f809";
 const GROTH16_VK_4_0_0_RC3_BYTES: &[u8] = &sp1_solana::GROTH16_VK_4_0_0_RC3_BYTES;
 pub const STATE_SEED: &[u8] = b"mixer_state";
 
@@ -110,7 +111,6 @@ pub mod solana_mixer {
         state.next_index = 0;
         state.current_root_index = 0;
         state.deposit_amount = deposit_amount;
-        state.nullifiers_used = Vec::new();
 
         state.filled_subtrees.copy_from_slice(&ZERO_HASHES);
         let top = ZERO_HASHES[TREE_DEPTH - 1];
@@ -128,6 +128,7 @@ pub mod solana_mixer {
             ctx.accounts.state.deposit_amount > 0,
             ErrorCode::DepositAmountZero
         );
+
         let state_info = ctx.accounts.state.to_account_info();
         invoke(
             &system_instruction::transfer(
@@ -139,29 +140,29 @@ pub mod solana_mixer {
         )?;
 
         let state = &mut ctx.accounts.state;
-        let leaf_index = state.next_index.checked_add(0).unwrap() as usize;
+        let leaf_index = state.next_index as usize;
         require!(leaf_index < (1 << TREE_DEPTH), ErrorCode::TreeFull);
 
         let mut node = commitment;
         let mut idx = leaf_index;
+
         for level in 0..TREE_DEPTH {
-            if idx % 2 == 0 {
+            if idx & 1 == 0 {
                 state.filled_subtrees[level] = node;
-                let zero = ZERO_HASHES[level];
-                node = PoseidonHash::hash_pair(&node, &zero).0;
+                node = PoseidonHash::hash_pair(&node, &ZERO_HASHES[level]).0;
             } else {
                 let left = state.filled_subtrees[level];
                 node = PoseidonHash::hash_pair(&left, &node).0;
-                state.filled_subtrees[level] = node;
             }
-            idx /= 2;
+            idx >>= 1;
         }
 
-        let cur = state.current_root_index as usize;
-        state.root_history[cur] = node;
+        let next = ((state.current_root_index + 1) % ROOT_HISTORY_SIZE as u32) as usize;
+        state.root_history[next] = node;
+        state.current_root_index = next as u32;
         state.current_root = node;
-        state.current_root_index = ((cur + 1) % ROOT_HISTORY_SIZE) as u32;
-        state.next_index = state.next_index.checked_add(1).unwrap();
+
+        state.next_index += 1;
 
         emit!(DepositEvent {
             commitment,
@@ -173,7 +174,13 @@ pub mod solana_mixer {
     }
 
     /// Withdraw: verify SNARK proof, check Merkle root & nullifier, pay out
-    pub fn withdraw(ctx: Context<Withdraw>, proof: Vec<u8>, public_inputs: Vec<u8>) -> Result<()> {
+    pub fn withdraw(
+        ctx: Context<Withdraw>,
+        nullifier_bytes: [u8; 32],
+        proof: Vec<u8>,
+        public_inputs: Vec<u8>,
+    ) -> Result<()> {
+        let _ = nullifier_bytes;
         let state = &mut ctx.accounts.state;
 
         // verify SP1 proof
@@ -206,11 +213,6 @@ pub mod solana_mixer {
             }
         }
         require!(found, ErrorCode::InvalidRoot);
-        require!(
-            !state.nullifiers_used.contains(&nullifier_hash),
-            ErrorCode::NullifierAlreadyUsed
-        );
-        state.nullifiers_used.push(nullifier_hash);
 
         // transfers: refund ⇒ caller, fee ⇒ relayer, rest ⇒ recipient
         let total = state.deposit_amount;
@@ -282,13 +284,18 @@ pub struct Deposit<'info> {
 
 // Anyone may withdraw
 #[derive(Accounts)]
+#[instruction(nullifier_bytes: [u8; 32])]
 pub struct Withdraw<'info> {
     #[account(
         mut,
         seeds = [STATE_SEED],
         bump,
     )]
-    pub state: Account<'info, State>,
+    pub state: Box<Account<'info, State>>,
+    #[account(init, seeds = [nullifier_bytes.as_ref()], bump, payer = caller, space = 8)]
+    /// CHECK: validated by SNARK
+    pub nullifier: Box<Account<'info, Nullifier>>,
+    #[account(mut)]
     pub caller: Signer<'info>,
     /// CHECK: validated by SNARK
     #[account(mut)]
@@ -309,9 +316,12 @@ pub struct State {
     pub current_root: [u8; 32],
     pub filled_subtrees: [[u8; 32]; TREE_DEPTH],
     pub root_history: [[u8; 32]; ROOT_HISTORY_SIZE],
-    pub nullifiers_used: Vec<[u8; 32]>,
     pub deposit_amount: u64,
 }
+
+#[account]
+#[derive(Debug)]
+pub struct Nullifier {}
 
 impl State {
     const SPACE: usize = 8  // discriminator
@@ -320,7 +330,6 @@ impl State {
         + 4 + 4 + 32       // next_index, current_root_index, current_root
         + 32 * TREE_DEPTH  // filled_subtrees
         + 32 * ROOT_HISTORY_SIZE // root_history
-        + 32 * MAX_NULLIFIERS  // nullifiers_used (only 200 nullifiers can be stored, would optimize later)
         + 8; // deposit_amount
 }
 

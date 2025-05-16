@@ -10,7 +10,7 @@ use std::process::{Command, Stdio};
 use std::rc::Rc;
 use std::str::FromStr;
 
-const PROGRAM_ID: &str = "B7odahygLXdwCYmJteVyBFXXe9qEW5hyvCXieRGBoTTz";
+const PROGRAM_ID: &str = "62uKm8yeust7nZbf9nKZ7Jx5ncP9AZucBUSToQLACnmh";
 
 fn main() -> anyhow::Result<()> {
     let wallet_path = std::env::var("ANCHOR_WALLET")

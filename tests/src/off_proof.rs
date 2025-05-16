@@ -1,24 +1,8 @@
 use crate::merkle::{PoseidonHash, ZERO_HASHES};
+use ark_bn254::Fr;
+use light_poseidon::{Poseidon, PoseidonBytesHasher};
 
-pub fn merkle_check<const LEVEL: usize>(
-    root: [u8; 32],
-    leaf: [u8; 32],
-    siblings: &[[u8; 32]; LEVEL],
-    path_indices: &[u8; LEVEL],
-) {
-    let mut node = leaf;
-    for i in 0..LEVEL {
-        let (left, right) = if path_indices[i] == 0 {
-            (node, siblings[i])
-        } else {
-            (siblings[i], node)
-        };
-        node = PoseidonHash::hash_pair(&left, &right).0;
-    }
-    println!("\nnode {:?}", node);
-    println!("\nroot {:?}", root);
-    assert_eq!(node, root, "Merkle proof did not match");
-}
+const TREE_DEPTH: usize = 20;
 
 pub fn compute_exact_onchain_root<const LEVEL: usize>(
     leaves: &[[u8; 32]],
@@ -44,14 +28,14 @@ pub fn compute_exact_onchain_root<const LEVEL: usize>(
                 let zero = ZERO_HASHES[level];
                 if i == target_index {
                     siblings.push(zero);
-                    indices.push(0); // Left child
+                    indices.push(0);
                 }
                 node = PoseidonHash::hash_pair(&node, &zero).0;
             } else {
                 let left = filled_subtrees[level];
                 if i == target_index {
                     siblings.push(left);
-                    indices.push(1); // Right child
+                    indices.push(1);
                 }
                 node = PoseidonHash::hash_pair(&left, &node).0;
                 filled_subtrees[level] = node;
@@ -62,109 +46,112 @@ pub fn compute_exact_onchain_root<const LEVEL: usize>(
     (siblings, indices, node)
 }
 
-/// Compute just the Merkle‐root of a full list of leaves
-pub fn compute_root_only<const D: usize>(leaves: &[[u8; 32]], last_index: usize) -> [u8; 32] {
-    let mut subtrees = ZERO_HASHES;
-    for i in 0..=last_index {
-        let mut node = leaves[i];
-        let mut idx = i;
-        for level in 0..D {
-            let (l, r) = if idx % 2 == 0 {
-                (node, subtrees[level])
-            } else {
-                (subtrees[level], node)
-            };
-            node = PoseidonHash::hash_pair(&l, &r).0;
-            subtrees[level] = node;
-            idx /= 2;
-        }
-    }
-    subtrees[D - 1]
-}
+pub fn compute_root(leaves: &[[u8; 32]]) -> [u8; 32] {
+    let mut filled_subtrees = vec![[0u8; 32]; 20];
+    filled_subtrees.copy_from_slice(&ZERO_HASHES[..20]);
+    let mut root = ZERO_HASHES[19];
 
-/// Compute the Merkle‐proof path (siblings + indices) for a given leaf
-/// in the **final** tree of all `leaves`.
-pub fn compute_merkle_path<const D: usize>(
-    leaves: &[[u8; 32]],
-    target_index: usize,
-) -> (Vec<[u8; 32]>, Vec<u8>) {
-    let mut subtrees = ZERO_HASHES;
-    // first replay all deposits to build the final subtrees
-    for i in 0..leaves.len() {
-        let mut node = leaves[i];
-        let mut idx = i;
-        for level in 0..D {
-            let sib = subtrees[level];
+    for leaf_index in 0..leaves.len() {
+        let mut node = leaves[leaf_index];
+        let mut idx = leaf_index;
+        for level in 0..20 {
             if idx % 2 == 0 {
-                subtrees[level] = node;
-                node = PoseidonHash::hash_pair(&node, &sib).0;
+                filled_subtrees[level] = node;
+                node = PoseidonHash::hash_pair(&node, &ZERO_HASHES[level]).0;
             } else {
-                node = PoseidonHash::hash_pair(&sib, &node).0;
+                let left = filled_subtrees[level];
+                node = PoseidonHash::hash_pair(&left, &node).0;
+                filled_subtrees[level] = node;
             }
             idx /= 2;
         }
+        root = node;
     }
-
-    let mut siblings = Vec::with_capacity(D);
-    let mut path_indices = Vec::with_capacity(D);
-    let mut idx = target_index;
-    let mut node = leaves[target_index];
-    for level in 0..D {
-        let sib = subtrees[level];
-        siblings.push(sib);
-        path_indices.push((idx % 2) as u8);
-        if idx % 2 == 0 {
-            node = PoseidonHash::hash_pair(&node, &sib).0;
-        } else {
-            node = PoseidonHash::hash_pair(&sib, &node).0;
-        }
-        idx /= 2;
-    }
-    (siblings, path_indices)
+    root
 }
 
-pub fn compute_merkle_proof<const D: usize>(
-    leaves: &[[u8; 32]], // all deposits, in ascending leaf‐index order
-    target_index: usize, // which deposit you’re spending
-) -> (Vec<[u8; 32]>, Vec<u8>, [u8; 32]) {
-    assert!(target_index < leaves.len());
+pub fn merkle_check<const LEVEL: usize>(
+    root: [u8; 32],
+    leaf: [u8; 32],
+    siblings: &[[u8; 32]; LEVEL],
+    path_indices: &[u8; LEVEL],
+) -> bool {
+    let mut node = leaf;
 
-    let leaf_count = leaves.len();
-    let full_leaves = leaf_count.next_power_of_two();
-    let mut level_nodes: Vec<[u8; 32]> = Vec::with_capacity(full_leaves);
-    level_nodes.extend_from_slice(leaves);
-    level_nodes.resize(full_leaves, ZERO_HASHES[0]);
+    for i in 0..LEVEL {
+        if path_indices[i] > 1 {
+            return false;
+        }
 
-    let mut layers = Vec::with_capacity(D + 1);
-    layers.push(level_nodes);
-    for level in 0..D {
-        let prev = &layers[level];
-        let mut next = Vec::with_capacity(prev.len() / 2);
-        for chunk in prev.chunks(2) {
-            let left = chunk[0];
-            let right = chunk.get(1).copied().unwrap_or(ZERO_HASHES[level]);
-            next.push(PoseidonHash::hash_pair(&left, &right).0);
+        let (l, r) = if path_indices[i] == 0 {
+            (node, siblings[i])
+        } else {
+            (siblings[i], node)
+        };
+        node = PoseidonHash::hash_pair(&l, &r).0;
+    }
+    println!("Computed node: {:?}", node);
+    println!("Expected root: {:?}", root);
+    node == root
+}
+
+pub fn merkle_check_circom<const LEVEL: usize>(
+    root: [u8; 32],
+    leaf: [u8; 32],
+    siblings: &[[u8; 32]; LEVEL],
+    path_indices: &[u8; LEVEL],
+) {
+    let mut node = leaf;
+    for i in 0..LEVEL {
+        let (l, r) = if path_indices[i] == 0 {
+            (node, siblings[i])
+        } else {
+            (siblings[i], node)
+        };
+        let mut pose = Poseidon::<Fr>::new_circom(2).unwrap();
+        node = pose.hash_bytes_le(&[&l, &r]).unwrap();
+    }
+    println!("Computed node: {:?}", node);
+    println!("Expected root: {:?}", root);
+    assert!(node == root, "Merkle check failed");
+}
+
+pub fn merkle_path<const DEPTH: usize>(
+    leaves: &[[u8; 32]],
+    leaf_index: usize,
+) -> ([[u8; 32]; DEPTH], [u8; DEPTH], [u8; 32]) {
+    assert!(leaf_index < leaves.len(), "index out of range");
+    let mut layers: Vec<Vec<[u8; 32]>> = vec![leaves.to_vec()];
+    let mut hasher = Poseidon::<Fr>::new_circom(2).unwrap();
+
+    for d in 0..DEPTH {
+        let mut next = Vec::with_capacity(layers[d].len().div_ceil(2));
+        for pair in layers[d].chunks(2) {
+            let l = pair[0];
+            let r = if pair.len() == 2 {
+                pair[1]
+            } else {
+                ZERO_HASHES[d]
+            };
+            next.push(hasher.hash_bytes_le(&[&l, &r]).unwrap());
         }
         layers.push(next);
     }
 
-    let mut siblings = Vec::with_capacity(D);
-    let mut bits = Vec::with_capacity(D);
-    let mut idx = target_index;
-    for level in 0..D {
-        let row = &layers[level];
-        let sib = if idx % 2 == 0 {
-            // even: sibling is to the right (or zero)
-            row.get(idx + 1).copied().unwrap_or(ZERO_HASHES[level])
+    let mut siblings = [[0u8; 32]; DEPTH];
+    let mut bits = [0u8; DEPTH];
+    let mut idx = leaf_index;
+
+    for d in 0..DEPTH {
+        let sib_idx = idx ^ 1;
+        siblings[d] = if sib_idx < layers[d].len() {
+            layers[d][sib_idx]
         } else {
-            // odd: sibling is to the left
-            row[idx - 1]
+            ZERO_HASHES[d]
         };
-        siblings.push(sib);
-        bits.push((idx % 2) as u8);
-        idx /= 2;
+        bits[d] = (idx & 1) as u8;
+        idx >>= 1;
     }
 
-    let full_root = layers[D][0];
-    (siblings, bits, full_root)
+    (siblings, bits, layers[DEPTH][0])
 }

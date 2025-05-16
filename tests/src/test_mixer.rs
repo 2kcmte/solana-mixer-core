@@ -16,8 +16,7 @@ use anchor_client::{
 
 use crate::{
     off_proof::{
-        self, compute_exact_onchain_root, compute_merkle_path, compute_merkle_proof,
-        compute_root_only, merkle_check,
+        compute_exact_onchain_root, compute_root, merkle_check, merkle_check_circom, merkle_path,
     },
     utils::{biguint_to_32_le_bytes, fetch_deposits},
 };
@@ -90,65 +89,6 @@ fn test_initialize_and_deposit() {
     let acc: State = program.account::<State>(state_pubkey).unwrap();
     print!("State {:?}", acc);
 
-    eprintln!("\n test_initialize_and_deposit 4, Assert matches");
-
-    let (nullifier, secret, _preimage, commitment1, nullifier_hash) =
-        mixer_lib::utils::create_random_commitment();
-
-    eprint!(
-        "\nBalance 1 before deposit {:?}",
-        program.rpc().get_account(&payer.pubkey())
-    );
-    let state_for_key: State = program.account::<State>(state_pubkey).unwrap();
-    print!("State {:?}", state_for_key);
-
-    // deposit of an actual commitment
-    let sig_deposit = program
-        .request()
-        .accounts(solana_mixer::accounts::Deposit {
-            state: state_pubkey,
-            depositor: payer.pubkey(),
-            system_program: system_program::ID,
-        })
-        .args(solana_mixer::instruction::Deposit {
-            commitment: commitment1,
-        })
-        .signer(&payer)
-        .send()
-        .expect("Not able to send transaction Deposit");
-
-    eprintln!("deposit sig: {}", sig_deposit);
-
-    let (nullifier, secret, _preimage, commitment2, nullifier_hash) =
-        mixer_lib::utils::create_random_commitment();
-
-    eprint!(
-        "\nBalance 1 before deposit {:?}",
-        program.rpc().get_account(&payer.pubkey())
-    );
-    let state_for_key: State = program.account::<State>(state_pubkey).unwrap();
-    print!("State {:?}", state_for_key);
-
-    // deposit of an actual commitment
-    let sig_deposit = program
-        .request()
-        .accounts(solana_mixer::accounts::Deposit {
-            state: state_pubkey,
-            depositor: payer.pubkey(),
-            system_program: system_program::ID,
-        })
-        .args(solana_mixer::instruction::Deposit {
-            commitment: commitment2,
-        })
-        .signer(&payer)
-        .send()
-        .expect("Not able to send transaction Deposit");
-
-    eprintln!("deposit sig: {}", sig_deposit);
-
-    let acc2_state = program.account::<State>(state_pubkey).unwrap();
-    print!("State {:?}", acc2_state);
-
     let (nullifier, secret, _preimage, commitment, nullifier_hash) =
         mixer_lib::utils::create_random_commitment();
 
@@ -179,6 +119,94 @@ fn test_initialize_and_deposit() {
     let acc2_state = program.account::<State>(state_pubkey).unwrap();
     print!("State {:?}", acc2_state);
 
+    eprintln!("\n test_initialize_and_deposit 4, Assert matches");
+
+    let (nullifier, secret, _preimage, commitment1, nullifier_hash) =
+        mixer_lib::utils::create_random_commitment();
+    // deposit of an actual commitment
+    let sig_deposit = program
+        .request()
+        .accounts(solana_mixer::accounts::Deposit {
+            state: state_pubkey,
+            depositor: payer.pubkey(),
+            system_program: system_program::ID,
+        })
+        .args(solana_mixer::instruction::Deposit {
+            commitment: commitment1,
+        })
+        .signer(&payer)
+        .send()
+        .expect("Not able to send transaction Deposit");
+    eprint!(
+        "\nBalance 1 before deposit {:?}",
+        program.rpc().get_account(&payer.pubkey())
+    );
+    let state_for_key: State = program.account::<State>(state_pubkey).unwrap();
+    print!("State {:?}", state_for_key);
+    /*
+        // deposit of an actual commitment
+        let sig_deposit = program
+            .request()
+            .accounts(solana_mixer::accounts::Deposit {
+                state: state_pubkey,
+                depositor: payer.pubkey(),
+                system_program: system_program::ID,
+            })
+            .args(solana_mixer::instruction::Deposit {
+                commitment: commitment1,
+            })
+            .signer(&payer)
+            .send()
+            .expect("Not able to send transaction Deposit");
+
+        eprintln!("deposit sig: {}", sig_deposit);
+
+        let (nullifier, secret, _preimage, commitment3, nullifier_hash) =
+            mixer_lib::utils::create_random_commitment();
+
+        // deposit of an actual commitment
+        let sig_deposit = program
+            .request()
+            .accounts(solana_mixer::accounts::Deposit {
+                state: state_pubkey,
+                depositor: payer.pubkey(),
+                system_program: system_program::ID,
+            })
+            .args(solana_mixer::instruction::Deposit {
+                commitment: commitment3,
+            })
+            .signer(&payer)
+            .send()
+            .expect("Not able to send transaction Deposit");
+
+        eprintln!("deposit sig: {}", sig_deposit);
+    */
+    let mut looped_commitments = Vec::new();
+    for _ in 0..32 {
+        let (nullifier, secret, _preimage, commitment2, nullifier_hash) =
+            mixer_lib::utils::create_random_commitment();
+
+        // deposit of an actual commitment
+        let sig_deposit = program
+            .request()
+            .accounts(solana_mixer::accounts::Deposit {
+                state: state_pubkey,
+                depositor: payer.pubkey(),
+                system_program: system_program::ID,
+            })
+            .args(solana_mixer::instruction::Deposit {
+                commitment: commitment2,
+            })
+            .signer(&payer)
+            .send()
+            .expect("Not able to send transaction Deposit");
+        looped_commitments.push(commitment2);
+        eprintln!("deposit sig: {}", sig_deposit);
+    }
+
+    let acc2_state = program.account::<State>(state_pubkey).unwrap();
+    print!("State {:?}", acc2_state);
+
     let (
         deposit_commitments_leaf,
         leaf_entry,
@@ -193,14 +221,18 @@ fn test_initialize_and_deposit() {
         [u8; 32],
     );
 
-    eprintln!("\ndeposit commitments {:?} \n deposit leaf indices {:?} \n commitment leaf index {:?} \n my commitment found {:?} \nMy commitment it self {:?}", leaf_entry, deposit_leaf_indices, commitment_leaf_index, my_commitment_found,commitment);
+    eprintln!("\n\ndeposit commitments {:?} \n deposit leaf indices {:?} \n commitment leaf index {:?} \n my commitment found {:?} \nMy commitment it self {:?}", deposit_commitments_leaf, deposit_leaf_indices, commitment_leaf_index, my_commitment_found,commitment1);
 
     let leaf_entry_u64: Vec<(u64, [u8; 32])> = leaf_entry
         .iter()
         .map(|&(idx, commitment)| (idx as u64, commitment))
         .collect();
     let (siblings, path_indices, current_root) =
-        compute_merkle_proof::<20>(&deposit_commitments_leaf, commitment_leaf_index);
+        merkle_path::<20>(&deposit_commitments_leaf, commitment_leaf_index);
+    println!(
+        "\nComputed Root {:?}\n",
+        compute_root(&deposit_commitments_leaf)
+    );
 
     // 4) Compute the root of the **final** tree:
     /*  let current_root = compute_root_only::<20>(
@@ -208,51 +240,57 @@ fn test_initialize_and_deposit() {
         deposit_commitments_leaf.len() - 1,
     );*/
 
-    let mut path_elems_for_proof: [[u8; 32]; 20] =
-        siblings.try_into().unwrap_or_else(|v: Vec<[u8; 32]>| {
-            panic!("Expected a Vec of length {} but it was {}", 20, v.len())
-        });
-    let mut path_inds_for_proof = path_indices.try_into().unwrap_or_else(|v: Vec<u8>| {
-        panic!("Expected a Vec of length {} but it was {}", 20, v.len())
-    });
+    println!(
+        "\ndeposit_commitments_leaf {:?}\n leaf_entry {:?}",
+        deposit_commitments_leaf[commitment_leaf_index], commitment1
+    );
+    let mut path_elems_for_proof: [[u8; 32]; 20] = siblings.try_into().unwrap();
+    let mut path_inds_for_proof: [u8; 20] = path_indices.try_into().unwrap();
     let mut root_for_proof = current_root;
     let _withdraw_state: State = program.account::<State>(state_pubkey).unwrap();
     eprintln!(
         "\n current root {:?} \n root_for_proof {:?}",
         _withdraw_state.current_root, root_for_proof
     );
-    merkle_check(
-        root_for_proof,
+
+    let siblings_array: [[u8; 32]; 20] = path_elems_for_proof.try_into().unwrap();
+    let path_indices: [u8; 20] = path_inds_for_proof.try_into().unwrap();
+
+    merkle_check::<20>(
+        root_for_proof, //  compute_root(&deposit_commitments_leaf),
+        deposit_commitments_leaf[commitment_leaf_index],
+        &path_elems_for_proof,
+        &path_inds_for_proof,
+    );
+    merkle_check_circom::<20>(
+        root_for_proof, //  compute_root(&deposit_commitments_leaf),
         deposit_commitments_leaf[commitment_leaf_index],
         &path_elems_for_proof,
         &path_inds_for_proof,
     );
 
+    println!("\nmerkle_check siblings {:?}\n", path_elems_for_proof);
     let mut found = false;
-    for &r in _withdraw_state.root_history.iter() {
+    for (i, &r) in _withdraw_state.root_history.iter().enumerate() {
         if r == root_for_proof {
             found = true;
+            println!("found in root history {:?} at index {:?}", true, i);
             break;
         }
     }
 
     assert!(found);
-
-    assert!(false);
+    // assert_eq!(siblings_array.to_vec(), sigblings.to_vec());
+    // assert!(false);
 
     let merkle_proof;
     if my_commitment_found {
-        merkle_proof =
-            compute_exact_onchain_root::<20>(&deposit_commitments_leaf, commitment_leaf_index);
+        merkle_proof = merkle_path::<20>(&deposit_commitments_leaf, commitment_leaf_index);
 
         let (siblings, path_indices, root) = merkle_proof;
 
-        path_elems_for_proof = siblings.try_into().unwrap_or_else(|v: Vec<[u8; 32]>| {
-            panic!("Expected a Vec of length {} but it was {}", 20, v.len())
-        });
-        path_inds_for_proof = path_indices.try_into().unwrap_or_else(|v: Vec<u8>| {
-            panic!("Expected a Vec of length {} but it was {}", 20, v.len())
-        });
+        path_elems_for_proof = siblings;
+        path_inds_for_proof = path_indices;
         root_for_proof = root;
         eprintln!(
             "path_elems_for_proof {:?} \n path_inds_for_proof {:?} \n root_for_proof {:?}",
@@ -276,13 +314,19 @@ fn test_initialize_and_deposit() {
     eprintln!("root history {:?}", _withdraw_state.root_history);
     eprintln!("root for proof {:?}", root_for_proof);
 
-    merkle_check(
+    merkle_check::<20>(
         root_for_proof,
-        commitment,
+        deposit_commitments_leaf[commitment_leaf_index],
         &path_elems_for_proof,
         &path_inds_for_proof,
     );
 
+    merkle_check_circom::<20>(
+        root_for_proof,
+        deposit_commitments_leaf[commitment_leaf_index],
+        &path_elems_for_proof,
+        &path_inds_for_proof,
+    );
     assert!(found);
 
     let new_withdrawal_recipient_address = Keypair::new();
@@ -363,7 +407,7 @@ fn test_initialize_and_deposit() {
         Pubkey::find_program_address(&[b"root", &public_inputs[0..32]], &program_id);
 
     let (nullifier_account_withdraw_pubkey, _) =
-        Pubkey::find_program_address(&[b"nullifier", &public_inputs[32..64]], &program_id);
+        Pubkey::find_program_address(&[&public_inputs[32..64]], &program_id);
 
     eprint!("\n{:?}\n", root_account_withdraw_pubkey);
     eprintln!(
@@ -379,10 +423,12 @@ fn test_initialize_and_deposit() {
             state: state_pubkey,
             caller: payer.pubkey(),
             recipient: new_withdrawal_recipient_address.pubkey(),
+            nullifier: nullifier_account_withdraw_pubkey,
             relayer: new_relayer_address.pubkey(),
             system_program: system_program::ID,
         })
         .args(solana_mixer::instruction::Withdraw {
+            nullifier_bytes: nullifier_hash,
             proof: proof_bytes,
             public_inputs: public_inputs,
         })
@@ -676,15 +722,14 @@ fn test_deposit_withdrawal() {
     let (root_account_withdraw_pubkey, _) =
         Pubkey::find_program_address(&[b"root", &(public_inputs[0..32])], &program_id);
 
-    let (nullifier_account_withdraw_pubkey, _) =
-        Pubkey::find_program_address(&[b"nullifier", &public_inputs[32..64]], &program_id);
-
     eprint!("\n{:?}\n", root_account_withdraw_pubkey);
     eprintln!(
         "\nLE commitment bytes {:?} \n LE u32 commitment bytes {:?}",
         &public_inputs[0..32],
         commitment_leaf_index.to_le_bytes()
     );
+    let (nullifier_account_withdraw_pubkey, _) =
+        Pubkey::find_program_address(&[&public_inputs[32..64]], &program_id);
 
     let sig_withdraw = program
         .request()
@@ -693,10 +738,12 @@ fn test_deposit_withdrawal() {
             state: state_pubkey,
             caller: payer.pubkey(),
             recipient: new_withdrawal_recipient_address.pubkey(),
+            nullifier: nullifier_account_withdraw_pubkey,
             relayer: new_relayer_address.pubkey(),
             system_program: system_program::ID,
         })
         .args(solana_mixer::instruction::Withdraw {
+            nullifier_bytes: nullifier_hash,
             proof: proof_bytes,
             public_inputs: public_inputs,
         })
@@ -864,7 +911,7 @@ fn test_deposit_withdrawal_again() {
         Pubkey::find_program_address(&[b"root", &(public_inputs[0..32])], &program_id);
 
     let (nullifier_account_withdraw_pubkey, _) =
-        Pubkey::find_program_address(&[b"nullifier", &public_inputs[32..64]], &program_id);
+        Pubkey::find_program_address(&[&public_inputs[32..64]], &program_id);
 
     eprint!("\n{:?}\n", root_account_withdraw_pubkey);
     eprintln!(
@@ -885,10 +932,12 @@ fn test_deposit_withdrawal_again() {
             state: state_pubkey,
             caller: payer.pubkey(),
             recipient: new_withdrawal_recipient_address.pubkey(),
+            nullifier: nullifier_account_withdraw_pubkey,
             relayer: new_relayer_address.pubkey(),
             system_program: system_program::ID,
         })
         .args(solana_mixer::instruction::Withdraw {
+            nullifier_bytes: nullifier_hash,
             proof: proof_bytes,
             public_inputs: public_inputs,
         })

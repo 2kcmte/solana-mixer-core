@@ -100,6 +100,12 @@ impl PoseidonHash {
         .to_bytes();
         PoseidonHash(out)
     }
+    pub fn single(a: &[u8; 32]) -> PoseidonHash {
+        let out = hashv(Parameters::Bn254X5, Endianness::LittleEndian, &[&a[..]])
+            .expect("poseidon failed")
+            .to_bytes();
+        PoseidonHash(out)
+    }
 
     pub fn empty_leaf() -> PoseidonHash {
         let zero = [0u8; 32];
