@@ -9,7 +9,7 @@ use anchor_client::{
 
 #[test]
 fn test_initialize() {
-    let program_id = "B7odahygLXdwCYmJteVyBFXXe9qEW5hyvCXieRGBoTTz";
+    let program_id = "AQW933TrdFxE5q7982Vb57crHjZe3B7EZaHotdXnaQYQ";
     let anchor_wallet = std::env::var("ANCHOR_WALLET").unwrap();
     let payer = read_keypair_file(&anchor_wallet).unwrap();
 

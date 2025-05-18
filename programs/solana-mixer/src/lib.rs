@@ -89,13 +89,12 @@ pub const ZERO_HASHES: [[u8; 32]; TREE_DEPTH] = [
     ],
 ];
 
-declare_id!("62uKm8yeust7nZbf9nKZ7Jx5ncP9AZucBUSToQLACnmh");
+declare_id!("AQW933TrdFxE5q7982Vb57crHjZe3B7EZaHotdXnaQYQ");
 
 pub const TREE_DEPTH: usize = 20;
 pub const ROOT_HISTORY_SIZE: usize = 33;
-//pub const MAX_NULLIFIERS: usize = 200;
 
-const MIXER_VKEY_HASH: &str = "0x00a7881a4eeebea56a664ec5e70cf2d5fe41d6e0544a2beb06d9ccdd16a1f809";
+const MIXER_VKEY_HASH: &str = "0x00393c834697dedf3301f353f5f93f37c6f80df6a46db8004319bb4e582089bb";
 const GROTH16_VK_4_0_0_RC3_BYTES: &[u8] = &sp1_solana::GROTH16_VK_4_0_0_RC3_BYTES;
 pub const STATE_SEED: &[u8] = b"mixer_state";
 

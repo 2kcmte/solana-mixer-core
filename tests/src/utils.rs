@@ -44,7 +44,7 @@ pub fn fetch_deposits(
         CommitmentConfig::confirmed(),
     );
 
-    let program_id = Pubkey::from_str("B7odahygLXdwCYmJteVyBFXXe9qEW5hyvCXieRGBoTTz")?;
+    let program_id = Pubkey::from_str("AQW933TrdFxE5q7982Vb57crHjZe3B7EZaHotdXnaQYQ")?;
 
     let sigs = rpc.get_signatures_for_address_with_config(
         &program_id,

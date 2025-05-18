@@ -6,10 +6,10 @@ resolution = true
 skip-lint = false
 
 [programs.localnet]
-solana_mixer = "B7odahygLXdwCYmJteVyBFXXe9qEW5hyvCXieRGBoTTz"
+solana_mixer = "AQW933TrdFxE5q7982Vb57crHjZe3B7EZaHotdXnaQYQ"
 
 [programs.devnet]
-solana_mixer = "B7odahygLXdwCYmJteVyBFXXe9qEW5hyvCXieRGBoTTz"
+solana_mixer = "AQW933TrdFxE5q7982Vb57crHjZe3B7EZaHotdXnaQYQ"
 
 [registry]
 url = "https://api.apr.dev"

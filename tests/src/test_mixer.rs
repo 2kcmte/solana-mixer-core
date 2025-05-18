@@ -58,7 +58,7 @@ fn test_initialize_and_deposit() {
     let payer = read_keypair_file(&wallet_path).expect("Read keypair file");
 
     let client = Client::new_with_options(Cluster::Localnet, &payer, CommitmentConfig::confirmed());
-    let program_id = Pubkey::from_str("B7odahygLXdwCYmJteVyBFXXe9qEW5hyvCXieRGBoTTz").unwrap();
+    let program_id = Pubkey::from_str("AQW933TrdFxE5q7982Vb57crHjZe3B7EZaHotdXnaQYQ").unwrap();
     let program = client.program(program_id).unwrap();
 
     program
