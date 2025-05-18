@@ -179,7 +179,6 @@ pub mod solana_mixer {
         proof: Vec<u8>,
         public_inputs: Vec<u8>,
     ) -> Result<()> {
-        let _ = nullifier_bytes;
         let state = &mut ctx.accounts.state;
 
         // verify SP1 proof
@@ -192,13 +191,16 @@ pub mod solana_mixer {
         .map_err(|_| error!(ErrorCode::InvalidProof))?;
 
         // parse public inputs slice
-        // Require >= 144, cause 144 len is compulsory and not to make other proof generators fail if exceeded
+        // Require >= 144, cause 144 len is compulsory
         require!(public_inputs.len() >= 144, ErrorCode::InvalidInput);
 
         msg!("public_inputs: {:?}", public_inputs);
 
         let root: [u8; 32] = public_inputs[0..32].try_into().unwrap();
         let nullifier_hash: [u8; 32] = public_inputs[32..64].try_into().unwrap();
+        // check that the users pass in correct nullifier
+        require!(nullifier_hash.eq(&nullifier_bytes), ErrorCode::InvalidInput);
+
         let recipient_bytes: [u8; 32] = public_inputs[64..96].try_into().unwrap();
         let relayer_bytes: [u8; 32] = public_inputs[96..128].try_into().unwrap();
         let fee = u64::from_le_bytes(public_inputs[128..136].try_into().unwrap());

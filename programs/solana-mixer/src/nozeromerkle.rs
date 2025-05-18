@@ -1,8 +1,6 @@
 use anchor_lang::prelude::*;
 use solana_poseidon::{hashv, Endianness, Parameters};
 
-pub const TREE_DEPTH: usize = 20;
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq, AnchorDeserialize, AnchorSerialize)]
 pub struct PoseidonHash(pub [u8; 32]);
 
