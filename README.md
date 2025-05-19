@@ -1,8 +1,9 @@
 # Solana Mixer
 
-<div style="text-align: center;">
+<center>
   <img src="./assets/mixer-logo.png" alt="Mixer Image" />
-</div>
+</center>
+
 A privacy-preserving fixed-denomination mixer on Solana, implemented in Rust + Anchor.
 
 ## Overview
