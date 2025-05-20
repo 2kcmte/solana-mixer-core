@@ -12,6 +12,11 @@ The Solana Mixer is a zero-knowledge privacy solution that allows users to depos
 A privacy‐preserving fixed‐denomination mixer on Solana, implemented in Rust + Anchor.  
 Users deposit a constant amount (e.g. 1 SOL) into a shared Poseidon‐hashed Merkle tree (depth 20) with a 33‐root history buffer. Withdrawals use Succinct SP1-generated Groth16 proofs to unlink deposit and withdrawal addresses in a single on‐chain instruction.
 
+> **Disclaimer:** This project is provided **for educational and research purposes only**.  
+> It is **not audited**, **not production-ready**, and **should not be used with real funds**.  
+> With sufficient funding, community support, and a formal audit, it may be developed into a full production-grade privacy mixer.
+
+
 ## Technical Details
 
 - **Implementation**: Rust + Anchor framework
@@ -93,3 +98,5 @@ Requests are sent to the proof server from the test to generate groth16 proofs, 
 
 
 If you have issues, feel free to create an issue on this repository
+
+
