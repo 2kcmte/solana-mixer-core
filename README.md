@@ -16,7 +16,7 @@ Users deposit a constant amount (e.g. 1 SOL) into a shared Poseidon‐hashed Mer
 
 - **Implementation**: Rust + Anchor framework
 - **Tree Structure**: 
-  - Poseidon-hashed Merkle tree with depth 20
+  - Poseidon-hashed Incremental Merkle tree with depth 20
   - 33-root history buffer to ensure root validity
   - Maximum capacity of 2^20 deposits
 - **Fixed Denomination**: Configurable deposit amount (e.g. 1 SOL)
@@ -41,7 +41,7 @@ Users deposit a constant amount (e.g. 1 SOL) into a shared Poseidon‐hashed Mer
 2. `deposit(commitment)`: 
    - Takes a 32-byte commitment
    - Collects the fixed deposit amount
-   - Updates the Merkle tree
+   - Updates the Incremental Merkle tree
 3. `withdraw(proof, public_inputs)`:
    - Verifies the zero-knowledge proof
    - Checks Merkle root and nullifier
