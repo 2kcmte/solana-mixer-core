@@ -16,7 +16,8 @@ Users deposit a constant amount (e.g. 1 SOL) into a shared Poseidon‐hashed Mer
 > It is **not audited**, **not production-ready**, and **should not be used with real funds**.  
 > With sufficient funding, community support, and a formal audit, it may be developed into a full production-grade privacy mixer.
 
-
+[Prove Server](https://github.com/2kcmte/mixer-prove-server) : The SP1 program (circuit) to generate the ZK proof.  
+[Mixer Webapp](https://github.com/0xPr0f/solana-mixer-webapp) : A live deployment of the full program on solana devnet.
 ## Technical Details
 
 - **Implementation**: Rust + Anchor framework
