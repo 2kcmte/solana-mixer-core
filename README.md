@@ -4,7 +4,7 @@
   <img width="250" height="230" src="./assets/mixer-logo.png"  alt="Mixer Image">
 </p>
 
-A privacy-preserving fixed-denomination mixer on Solana, implemented in Rust + Anchor.
+A privacy-preserving, fixed-denomination mixer on Solana, implemented in Anchor and verified with Succinct SP1.
 
 ## Overview
 
